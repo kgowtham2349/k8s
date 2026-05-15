@@ -1,0 +1,296 @@
+#etcd ##################
+ it is a distributed store----> if multiple master nodes all the has the etcd even if one failes data is available on multiple nodes
+Key-value store (cluster database)
+Stores entire cluster state
+Pods, Nodes, Deployments, Secrets, ConfigMaps
+Runs on port 2379
+Source of truth for kubernetes --> it stores the current cluster state no one else to beleive only one point
+Only kube-apiserver interacts directly with etcd
+👉 Example:
+Pod created → stored in etcd
+Pod deleted → removed from etcd
+🔹 kube-apiserver #####################
+Front-end of Kubernetes
+All components talk through API server
+Handles:
+Authentication
+Authorization
+Validation
+Processes REST requests (kubectl → API server)
+👉 Flow:
+kubectl → API Server → etcd
+Updates etcd after validation
+Acts as bridge between all components
+🔹 Controller Manager ###############################
+Runs multiple controllers (control loops)
+Key Controllers:
+Node Controller
+ReplicaSet Controller
+Deployment Controller
+Job Controller
+Endpoint Controller
+Role:
+Maintains desired state = actual state
+Continuously monitors cluster
+👉 Example:
+Desired pods = 3
+Running = 2 → creates 1 more
+🔹 Scheduler ######################################
+Assigns pods to nodes
+Steps:
+Finds unscheduled pods
+Filters nodes (resource check, rules)
+Scores nodes (best fit)
+Binds pod to node
+👉 Important:
+Does NOT create pod
+Only decides where to run
+🔹 kubelet #############################################
+Agent running on each node
+Responsibilities:
+Receives instructions from API server
+Ensures containers are running
+Talks to container runtime (Docker/containerd)
+👉 Example:
+Scheduler assigns pod → kubelet creates pod
+🔹 kube-proxy ############################################
+Handles networking inside cluster
+Responsibilities:
+Maintains network rules
+Enables pod-to-pod communication
+Implements Kubernetes Services
+👉 Works using:
+iptables / IPVS
+🔥 Full Flow (Very Important for Interviews)
+User → kubectl apply							
+API Server → validates request
+Data stored in etcd
+Controller Manager → ensures desired state
+Scheduler → assigns pod to node
+kubelet → creates pod
+kube-proxy → enables networking
+etcd → database / source of truth
+API Server → entry point
+Controller → reconciliation loop
+Scheduler → node selection
+kubelet → node agent
+kube-proxy → networking
+
+Kubernetes Notes
+## Pod --in k8s pods can contain one main container and may be helper container or more, k8s does not run container directly , it always runs them inside the Pod, usually one container best pratice
+A Pod is the smallest unit in Kubernetes that runs one or more containers sharing network and storage
+apiVersion: v1
+kind: Pod
+metadata:               # dictionary
+ name: httpd pod
+ labels:
+  app: frontend
+spec:					# lists which is dictionary of lists
+ containers:
+  - name: httpd
+    image: <docker_image>
+	ports:
+	 - containerPort: 80
+
+# kubectl create -f <pod definition file> or ####  kubectl apply -f <pod definition file>
+# kubectl get pods
+# kubectl describe pod <pod name>
+# kubectl logs pod <pod name>
+
+##Replicaset  --RS #########################################################################
+## Definition
+A ReplicaSet ensures that a specified number of Pod replicas are running at all times.
+
+## Why ReplicaSet?
+
+- Maintains desired number of Pods
+- Replaces failed Pods automatically
+- Provides high availability
+apiVersion: apps/v1
+kind: RepilicaSet
+metadata:
+ name: httpd-RS                   ## RS does not require labels instead matchLables needed in the spec
+spec:
+ replicas: 3
+ selector:
+  matchLabels:                    ## labels & selectors to manage Pods
+   app: httpd
+ template:
+  metadata:
+   name: httpd pod
+   labels:
+    app: httpd
+   spec:
+    containers:
+	 - name: httpd
+	   image: <image>
+	   ports:
+	   - containerPort: 80
+	   
+#kubectl create -f <rs definition file>
+#kubectl get replicaset
+#kubectl describe replicaset <rs name>
+#kubectl logs replicaset <rs name>
+
+##Deployment ##################################################################################
+A Deployment is a higher-level object that manages ReplicaSets and Pods, providing updates, scaling, and rollback capabilities.
+
+## Why Deployment?
+
+- Manages ReplicaSets automatically
+- Supports rolling updates
+- Allows rollback to previous versions
+- Ensures desired state of application
+
+## Example YAML
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+
+## Explanation
+
+- replicas → number of Pods
+- selector → identifies Pods
+- template → Pod blueprint
+- image → version of application
+
+## Commands
+
+kubectl apply -f deployment.yaml									# Create Deployment
+kubectl get deployments												# View Deployments
+kubectl get pods													# View Pods
+kubectl describe deployment nginx-deployment						# Describe Deployment
+kubectl scale deployment nginx-deployment --replicas=5				# Scale Deployment
+kubectl set image deployment/nginx-deployment nginx=nginx:latest	# Update Image
+kubectl rollout status deployment nginx-deployment					# Rollout Status
+kubectl rollout undo deployment nginx-deployment					# Rollback
+
+## Key Features
+
+- Rolling Updates (zero downtime)
+- Rollback support
+- Self-healing (recreates failed Pods)
+- Scaling support
+
+## Rolling Update Strategy
+
+- Updates Pods one by one
+- No downtime
+- Controlled by:
+  - maxSurge
+  - maxUnavailable
+
+## Common Mistakes
+### Issue: Update not happening
+Reasont: Wrong container name in set image
+Fix:
+Check container name using:
+kubectl get deployment -o yaml
+### Issue: Pods not updating
+Reason: Image tag not changed (latest caching issue)
+Fix:
+Use proper version tags (e.g., nginx:1.25)
+## Important Notes
+- Deployment → manages ReplicaSet
+- ReplicaSet → manages Pods
+Hierarchy:
+Deployment → ReplicaSet → Pod
+## Interview Answer
+A Deployment is used to manage applications in Kubernetes by providing scaling, rolling updates, and rollback features over Pods using ReplicaSets.
+📝 Kubernetes Services – Quick Notes #####################################
+🔹 What is a Service?
+Exposes pods to internal or external traffic
+Provides stable IP & DNS
+Solves pod IP change problem
+🔹 ClusterIP (Default) #############################################
+👉 Type: Internal service
+Exposes service inside the cluster only
+Cannot be accessed from outside
+Gets a virtual IP (ClusterIP)
+📌 Use Case:
+Communication between microservices
+👉 Example:
+Frontend → Backend → Database
+✔️ Most commonly used
+✔️ Default service type
+apiVersion: v1
+kind: Service   # ❗ not "Services"
+metadata:
+  name: httpd
+spec:
+  type: ClusterIP   # default, even if not mentioned
+  selector:
+    app: httpd
+  ports:
+    - port: 80        # Service port
+      targetPort: 80  # Pod container port
+🔹 NodePort ############################################################
+👉 Type: External access via node
+Exposes service on each node IP + port
+Port range: 30000–32767
+📌 Access:
+<NodeIP>:NodePort
+👉 Example:
+192.168.1.10:30007
+✔️ Simple External access
+❌ Not secure for production
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpd
+spec:
+  type: NodePort
+  selector:
+    app: httpd
+  ports:
+    - port: 8080       # Service port
+      targetPort: 80   # Pod port
+      nodePort: 30000  # External port (Node level)
+🔹 LoadBalancer #########################################################
+👉 Type: External (Cloud-based)
+Uses cloud provider load balancer
+Automatically provisions external IP
+📌 Flow:
+User → LoadBalancer → NodePort → Pod
+✔️ Production-ready
+✔️ Handles traffic distribution
+❌ Works mainly in cloud (AWS, Azure, GCP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpd
+spec:
+  type: LoadBalancer
+  selector:
+    app: httpd
+  ports:
+    - port: 80         # Service port
+      targetPort: 80   # Pod port
+NodePort Creation: Even if you don’t specify: A NodePort is automatically created internally
+🔥 Quick Difference Table
+Type		 	Access			 Scope		 Use Case
+ClusterIP	 	Internal only	 Cluster	 Service-to-service
+NodePort	 	External (IP)	 Node level	 Testing / small apps
+LoadBalancer 	External (LB)	 Internet	 Production apps
+🔥 Easy Memory Trick
+ClusterIP → Inside cluster
+NodePort → Node IP + Port
+LoadBalancer → Cloud external access
+“ClusterIP is used for internal communication, NodePort exposes the service via node IP and port, and LoadBalancer provides external access using a cloud load balancer.”
