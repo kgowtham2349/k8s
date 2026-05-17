@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: new-replicaset   ### Name of the ReplicaSet
+spec: 
+  replicas: 3           ### Number of desired pod replicas
+  selector:
+    matchLabels:
+      app: myapp        #### This name and the label in the template must match for the ReplicaSet to manage the pods
+  template:             #### Template for the pods that will be created by the ReplicaSet
+    metadata:
+      labels:
+        app: myapp       #### This label must match the selector's matchLabels for the ReplicaSet to manage the pods
+    spec:
+      containers:
+      - name: busybox 
+        image: busybox

@@ -1,0 +1,22 @@
+#create a deployment named httpd-frontend with 3 replicas using the httpd:2.4-alpine image
+# Name: httpd-frontend;
+#Replicas: 3;
+#Image: httpd:2.4-alpine
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: httpd-frontend
+spec:
+ replicas: 3             # for rs(name itself indicates rs)as, selector(matchLabels) and template # not metadata field here
+ seletor:                # for rs and dploy we need replicas, selector(matchLabels) and template # not metadata field here
+  matchLabels:
+      app: httpd-frontend
+ template:
+    metadata:            
+      labels:                 # remember labels to be matched in selector matchLabels
+        app: httpd-frontend
+    spec:
+      containers:
+      - name: httpd
+        image: httpd:2.4-alpine
